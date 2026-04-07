@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jayakar Tervati — Video Editor</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a08;
+    --surface: #111110;
+    --accent: #d4a843;
+    --accent2: #c0392b;
+    --text: #e8e4dc;
+    --muted: #6b6860;
+    --line: rgba(212,168,67,0.2);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 300;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* CUSTOM CURSOR */
+  .cursor {
+    position: fixed;
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: transform 0.1s, width 0.2s, height 0.2s;
+  }
+  .cursor-ring {
+    position: fixed;
+    width: 36px; height: 36px;
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9998;
+    transform: translate(-50%, -50%);
+    transition: transform 0.15s ease, width 0.3s, height 0.3s, opacity 0.3s;
+    opacity: 0.5;
+  }
+  body:hover .cursor { opacity: 1; }
+
+  /* FILM GRAIN OVERLAY */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 100;
+    opacity: 0.3;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 500;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 3rem;
+    border-bottom: 1px solid var(--line);
+    background: rgba(10,10,8,0.85);
+    backdrop-filter: blur(12px);
+  }
+  .nav-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+  }
+  .nav-links {
+    display: flex;
+    gap: 2.5rem;
+    list-style: none;
+  }
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    transition: color 0.3s;
+  }
+  .nav-links a:hover { color: var(--accent); }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 0 3rem 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background: 
+      linear-gradient(to bottom, transparent 40%, var(--bg) 100%),
+      linear-gradient(135deg, #1a0a00 0%, #0a0a08 50%, #000d1a 100%);
+  }
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image: 
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 70%);
+  }
+  .hero-reel {
+    position: absolute;
+    top: 8rem;
+    right: -2rem;
+    width: 55%;
+    display: flex;
+    gap: 3px;
+    opacity: 0.15;
+  }
+  .reel-strip {
+    width: 100%;
+    height: 400px;
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--accent) 0px, var(--accent) 18px,
+      transparent 18px, transparent 22px,
+      var(--accent) 22px, var(--accent) 28px,
+      #222 28px, #222 80px,
+      var(--accent) 80px, var(--accent) 86px
+    );
+  }
+
+  .hero-tag {
+    position: relative;
+    font-size: 0.6rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1rem;
+    animation: fadeUp 1s ease 0.3s both;
+  }
+  .hero-name {
+    position: relative;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(5rem, 14vw, 13rem);
+    line-height: 0.85;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    animation: fadeUp 1s ease 0.5s both;
+  }
+  .hero-name span { color: var(--accent); }
+  .hero-role {
+    position: relative;
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    font-size: clamp(1.2rem, 3vw, 2.5rem);
+    color: var(--muted);
+    margin-top: 0.5rem;
+    animation: fadeUp 1s ease 0.7s both;
+  }
+  .hero-contact {
+    position: relative;
+    display: flex;
+    gap: 2rem;
+    margin-top: 2.5rem;
+    animation: fadeUp 1s ease 0.9s both;
+  }
+  .hero-contact a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 2px;
+    transition: color 0.3s, border-color 0.3s;
+  }
+  .hero-contact a:hover { color: var(--accent); border-color: var(--accent); }
+
+  .scroll-indicator {
+    position: absolute;
+    bottom: 2rem;
+    right: 3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    opacity: 0.4;
+    animation: fadeIn 2s ease 1.5s both;
+  }
+  .scroll-line {
+    width: 1px;
+    height: 60px;
+    background: linear-gradient(to bottom, var(--accent), transparent);
+    animation: scrollPulse 2s ease infinite;
+  }
+  .scroll-text {
+    font-size: 0.5rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--muted);
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(40px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 0.4; } }
+  @keyframes scrollPulse {
+    0%, 100% { transform: scaleY(1); opacity: 1; }
+    50% { transform: scaleY(0.6); opacity: 0.4; }
+  }
+
+  /* SECTIONS */
+  section {
+    padding: 6rem 3rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    max-width: 60px;
+    height: 1px;
+    background: var(--accent);
+    opacity: 0.5;
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    line-height: 1;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    margin-bottom: 2.5rem;
+  }
+
+  /* ABOUT */
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+    align-items: start;
+  }
+  .about-text {
+    font-size: 0.85rem;
+    line-height: 1.9;
+    color: rgba(232,228,220,0.7);
+  }
+  .about-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  .stat-box {
+    border: 1px solid var(--line);
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+  .stat-box::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(212,168,67,0.05), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .stat-box:hover { border-color: var(--accent); }
+  .stat-box:hover::before { opacity: 1; }
+  .stat-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .stat-desc {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 0.5rem;
+  }
+
+  /* SKILLS */
+  .skills-wrap {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .skill-cat {
+    background: var(--bg);
+    padding: 2rem;
+    transition: background 0.3s;
+  }
+  .skill-cat:hover { background: var(--surface); }
+  .skill-cat-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+  }
+  .skill-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .skill-list li {
+    font-size: 0.7rem;
+    color: rgba(232,228,220,0.6);
+    padding-left: 1rem;
+    position: relative;
+    line-height: 1.6;
+  }
+  .skill-list li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    opacity: 0.6;
+  }
+
+  /* CAREER */
+  .timeline {
+    position: relative;
+    padding-left: 2rem;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(to bottom, var(--accent), var(--line), transparent);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 3.5rem;
+    padding-left: 2rem;
+    opacity: 0;
+    transform: translateX(-20px);
+    animation: slideIn 0.6s ease forwards;
+  }
+  .timeline-item:nth-child(1) { animation-delay: 0.1s; }
+  .timeline-item:nth-child(2) { animation-delay: 0.25s; }
+  .timeline-item:nth-child(3) { animation-delay: 0.4s; }
+  .timeline-item:nth-child(4) { animation-delay: 0.55s; }
+  .timeline-item:nth-child(5) { animation-delay: 0.7s; }
+
+  @keyframes slideIn {
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .timeline-dot {
+    position: absolute;
+    left: -2.35rem;
+    top: 0.3rem;
+    width: 10px; height: 10px;
+    border: 1px solid var(--accent);
+    background: var(--bg);
+    transform: rotate(45deg);
+  }
+  .timeline-year {
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .timeline-role {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    color: var(--text);
+    margin-bottom: 0.4rem;
+  }
+  .timeline-co {
+    font-size: 0.65rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.75rem;
+  }
+  .timeline-desc {
+    font-size: 0.75rem;
+    line-height: 1.8;
+    color: rgba(232,228,220,0.55);
+  }
+
+  /* WORKS */
+  .works-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+  }
+  .work-card {
+    background: var(--bg);
+    padding: 2rem 1.75rem;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s;
+    group: true;
+  }
+  .work-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+  }
+  .work-card:hover { background: var(--surface); }
+  .work-card:hover::after { transform: scaleX(1); }
+  .work-type {
+    font-size: 0.5rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.75rem;
+  }
+  .work-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.2rem;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
+  }
+  .work-role {
+    font-size: 0.62rem;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 1.25rem;
+  }
+  .work-link-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: gap 0.3s;
+  }
+  .work-card:hover .work-link-label { gap: 0.9rem; }
+  .work-link-label::after { content: '→'; }
+
+  /* CONTACT */
+  .contact-wrap {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 4rem;
+    align-items: center;
+    border: 1px solid var(--line);
+    padding: 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .contact-wrap::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(212,168,67,0.06), transparent 70%);
+  }
+  .contact-big {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2rem, 5vw, 4rem);
+    line-height: 1.1;
+    letter-spacing: 0.02em;
+  }
+  .contact-big em {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    color: var(--accent);
+  }
+  .contact-details { display: flex; flex-direction: column; gap: 1.5rem; }
+  .contact-item-label {
+    font-size: 0.5rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.25rem;
+  }
+  .contact-item-val {
+    font-size: 0.8rem;
+    color: var(--text);
+  }
+  .contact-item-val a {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.3s;
+  }
+  .contact-item-val a:hover { border-color: var(--accent); }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 2rem 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+  }
+  .footer-note {
+    font-size: 0.55rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    opacity: 0.5;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    nav { padding: 1.2rem 1.5rem; }
+    .nav-links { gap: 1.2rem; }
+    .hero { padding: 0 1.5rem 3rem; }
+    section { padding: 4rem 1.5rem; }
+    .about-grid { grid-template-columns: 1fr; gap: 2rem; }
+    .works-grid { grid-template-columns: 1fr; }
+    .skills-wrap { grid-template-columns: 1fr; }
+    .contact-wrap { grid-template-columns: 1fr; padding: 2rem; }
+    footer { flex-direction: column; gap: 1rem; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">JT</div>
+  <ul class="nav-links">
+    <li><a href="#about">About</a></li>
+    <li><a href="#skills">Skills</a></li>
+    <li><a href="#career">Career</a></li>
+    <li><a href="#works">Works</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-reel"><div class="reel-strip"></div></div>
+
+  <p class="hero-tag">Hyderabad — Video Editor &amp; Storyteller</p>
+  <h1 class="hero-name">JAYAKAR<br><span>TERVATI</span></h1>
+  <p class="hero-role">Crafting Cinematic Narratives</p>
+  <div class="hero-contact">
+    <a href="mailto:jayakarthecool@gmail.com">jayakarthecool@gmail.com</a>
+    <a href="tel:7901237325">+91 7901237325</a>
+  </div>
+
+  <div class="scroll-indicator">
+    <div class="scroll-text">Scroll</div>
+    <div class="scroll-line"></div>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<section id="about">
+  <p class="section-label">About</p>
+  <h2 class="section-title">A LITTLE<br>ABOUT ME</h2>
+  <div class="about-grid">
+    <p class="about-text">
+      Creative and versatile video editor based in Hyderabad with extensive experience crafting compelling edits for short films, feature documentaries, and commercial campaigns. Adept at blending storytelling and visual rhythm to bring out emotional depth and cinematic flow.<br><br>
+      Also experienced as a script and ad copywriter, bringing a storyteller's perspective to every project. Skilled at using both traditional and AI-driven tools to streamline post-production and enhance visual impact.
+    </p>
+    <div class="about-stats">
+      <div class="stat-box">
+        <div class="stat-num">5+</div>
+        <div class="stat-desc">Short Films Edited</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num">2+</div>
+        <div class="stat-desc">Documentaries</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num">3+</div>
+        <div class="stat-desc">Years Experience</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num">∞</div>
+        <div class="stat-desc">Stories to Tell</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SKILLS -->
+<section id="skills" style="max-width:1200px; margin:0 auto; padding: 0 3rem 6rem;">
+  <p class="section-label">Expertise</p>
+  <h2 class="section-title">MY SKILLS</h2>
+  <div class="skills-wrap">
+    <div class="skill-cat">
+      <div class="skill-cat-title">Video Editing & Post</div>
+      <ul class="skill-list">
+        <li>Adobe Premiere Pro, DaVinci Resolve, Final Cut Pro</li>
+        <li>Adobe After Effects, Photoshop, Audition</li>
+        <li>Multi-camera editing, sound syncing, pacing, continuity</li>
+        <li>Advanced color correction and grading</li>
+      </ul>
+    </div>
+    <div class="skill-cat">
+      <div class="skill-cat-title">Creative & Storytelling</div>
+      <ul class="skill-list">
+        <li>Narrative structure, tone, and rhythm</li>
+        <li>Short films, documentaries, and ad films</li>
+        <li>Collaboration with directors, cinematographers, producers</li>
+        <li>Writing and conceptualization for branded content</li>
+      </ul>
+    </div>
+    <div class="skill-cat">
+      <div class="skill-cat-title">AI & Modern Workflow</div>
+      <ul class="skill-list">
+        <li>AI-assisted editing: Runway ML, Pika Labs, Descript</li>
+        <li>Text-to-video and auto-editing workflows</li>
+        <li>Efficient asset management and project organization</li>
+      </ul>
+    </div>
+    <div class="skill-cat">
+      <div class="skill-cat-title">Sound & Visual Enhancement</div>
+      <ul class="skill-list">
+        <li>Audio cleanup, EQ balancing, and SFX layering</li>
+        <li>Background score integration and music synchronization</li>
+        <li>Visual effects integration and transitions design</li>
+        <li>Fast turnaround under tight deadlines</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- CAREER -->
+<section id="career">
+  <p class="section-label">Experience</p>
+  <h2 class="section-title">CAREER</h2>
+  <div class="timeline">
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-year">2023 – 2024</div>
+      <div class="timeline-role">Assistant Director & Editor</div>
+      <div class="timeline-co">Independent Documentary — Directed by Hriday Ranjan (Film Companion)</div>
+      <div class="timeline-desc">Worked on an independent documentary directed by Hriday Ranjan from Film Companion. Transitioned from Assistant Director to Editor, delivering the final cut of the film. Oversaw dailies, organized and logged footage, ensured editorial continuity. Closely supported the lead editor by reviewing cuts and managing revisions, shaping narrative flow. Also contributed to sound editing — syncing, dialogue clean-up coordination, and sound design workflow.</div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-year">2024 – 2025</div>
+      <div class="timeline-role">Writer & Editor</div>
+      <div class="timeline-co">Rain Forest Entertainment — Bajaj Electronics Campaigns</div>
+      <div class="timeline-desc">Contributed to several ad campaigns for Bajaj Electronics, combining narrative clarity with brand-focused communication. Shaped content from concept through final delivery with a collaborative and detail-oriented approach to editing.</div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-year">Ongoing</div>
+      <div class="timeline-role">Social Media Editor</div>
+      <div class="timeline-co">Kaishaki Dance School — Kuchipudi</div>
+      <div class="timeline-desc">Creates and manages reels and social media content for Kaishaki Dance School, a reputed Kuchipudi dance institution. Handles social media accounts and ensures consistent, engaging visual presence.</div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-year">2023</div>
+      <div class="timeline-role">Political Campaign Video Editor</div>
+      <div class="timeline-co">State & National Elections</div>
+      <div class="timeline-desc">Edited videos for multiple political campaigns across state and national elections throughout the general election of 2023. Delivered video campaigns, reels, and poster creatives.</div>
+    </div>
+
+    <div class="timeline-item">
+      <div class="timeline-dot"></div>
+      <div class="timeline-year">Ongoing</div>
+      <div class="timeline-role">Podcast Producer & Editor</div>
+      <div class="timeline-co">The Haribob Show — YouTube</div>
+      <div class="timeline-desc">Oversees the full production of The Haribob Show on YouTube — handling the production shoot and editing all podcast episodes to ensure a polished final output.</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- WORKS -->
+<section id="works" style="max-width:1200px; margin:0 auto; padding: 0 3rem 6rem;">
+  <p class="section-label">Portfolio</p>
+  <h2 class="section-title">MY WORK</h2>
+  <div class="works-grid">
+
+    <a class="work-card" href="https://www.youtube.com/watch?v=d-G14-HNvEU" target="_blank" rel="noopener">
+      <div class="work-type">Short Film</div>
+      <div class="work-title">CATS</div>
+      <div class="work-role">Written, Edited & Directed by Jayakar Tervati</div>
+      <div class="work-link-label">Watch on YouTube</div>
+    </a>
+
+    <a class="work-card" href="https://www.youtube.com/watch?v=kTPa74vxwqQ" target="_blank" rel="noopener">
+      <div class="work-type">Short Film</div>
+      <div class="work-title">Fuzzy</div>
+      <div class="work-role">Edited by Jayakar Tervati</div>
+      <div class="work-link-label">Watch on YouTube</div>
+    </a>
+
+    <a class="work-card" href="https://www.youtube.com/watch?v=PugqOZKQHs4" target="_blank" rel="noopener">
+      <div class="work-type">Short Film</div>
+      <div class="work-title">Drama</div>
+      <div class="work-role">Edited by Jayakar Tervati</div>
+      <div class="work-link-label">Watch on YouTube</div>
+    </a>
+
+    <a class="work-card" href="https://vimeo.com/817604073" target="_blank" rel="noopener">
+      <div class="work-type">Documentary</div>
+      <div class="work-title">The Reserved</div>
+      <div class="work-role">Produced & Edited by Jayakar Tervati</div>
+      <div class="work-link-label">Watch on Vimeo</div>
+    </a>
+
+    <a class="work-card" href="https://www.youtube.com/watch?v=vpDPLXvIFLg" target="_blank" rel="noopener">
+      <div class="work-type">Commercial — Bajaj Electronics</div>
+      <div class="work-title">Ad Campaign I</div>
+      <div class="work-role">Written & Edited by Jayakar Tervati</div>
+      <div class="work-link-label">Watch on YouTube</div>
+    </a>
+
+    <a class="work-card" href="https://www.youtube.com/watch?v=PfmZZU3qAZs" target="_blank" rel="noopener">
+      <div class="work-type">Commercial — Bajaj Electronics</div>
+      <div class="work-title">Ad Campaign II</div>
+      <div class="work-role">Written & Edited by Jayakar Tervati</div>
+      <div class="work-link-label">Watch on YouTube</div>
+    </a>
+
+    <a class="work-card" href="https://www.youtube.com/watch?v=sAxQqTLPWhg" target="_blank" rel="noopener" style="grid-column: 1 / -1; max-width: 33.33%;">
+      <div class="work-type">Podcast</div>
+      <div class="work-title">The Haribob Show</div>
+      <div class="work-role">Production, Shoot & Edit by Jayakar Tervati — Hosted by Haribabu</div>
+      <div class="work-link-label">Watch on YouTube</div>
+    </a>
+
+  </div>
+  <p style="font-size:0.6rem; color:var(--muted); margin-top:1.5rem; letter-spacing:0.1em;">* Additional work available on request.</p>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <p class="section-label">Get in Touch</p>
+  <div class="contact-wrap">
+    <div>
+      <div class="contact-big">
+        Let's make something<br><em>unforgettable</em><br>together.
+      </div>
+    </div>
+    <div class="contact-details">
+      <div>
+        <div class="contact-item-label">Email</div>
+        <div class="contact-item-val"><a href="mailto:jayakarthecool@gmail.com">jayakarthecool@gmail.com</a></div>
+      </div>
+      <div>
+        <div class="contact-item-label">Phone</div>
+        <div class="contact-item-val"><a href="tel:7901237325">+91 7901237325</a></div>
+      </div>
+      <div>
+        <div class="contact-item-label">Location</div>
+        <div class="contact-item-val">Hyderabad, India</div>
+      </div>
+      <div>
+        <div class="contact-item-label">Availability</div>
+        <div class="contact-item-val">Open to freelance &amp; full-time roles</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">JAYAKAR TERVATI</div>
+  <div class="footer-note">Video Editor — Hyderabad © 2025</div>
+</footer>
+
+<script>
+  // Cursor
+  const cursor = document.getElementById('cursor');
+  const ring = document.getElementById('cursorRing');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+  document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+  function animateCursor() {
+    cursor.style.left = mx + 'px'; cursor.style.top = my + 'px';
+    rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
+    ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+    requestAnimationFrame(animateCursor);
+  }
+  animateCursor();
+
+  document.querySelectorAll('a, button').forEach(el => {
+    el.addEventListener('mouseenter', () => {
+      cursor.style.width = '14px'; cursor.style.height = '14px';
+      ring.style.width = '52px'; ring.style.height = '52px'; ring.style.opacity = '0.8';
+    });
+    el.addEventListener('mouseleave', () => {
+      cursor.style.width = '8px'; cursor.style.height = '8px';
+      ring.style.width = '36px'; ring.style.height = '36px'; ring.style.opacity = '0.5';
+    });
+  });
+</script>
+
+</body>
+</html>
